@@ -31,10 +31,10 @@ public class Server {
     private void awaitingConnectionMainLoop(ServerSocket serverSocket) {
         ExecutorService threadPool = Executors.newFixedThreadPool(64);
         while (true) {
-            try {
-                var socket = serverSocket.accept();
-                var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                var out = new BufferedOutputStream(socket.getOutputStream());
+            try (var socket = serverSocket.accept();
+                 var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                 var out = new BufferedOutputStream(socket.getOutputStream())) {
+
                 threadPool.execute(new Thread(() -> {
                     System.out.println("new request received");
                     //

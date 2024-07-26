@@ -2,36 +2,39 @@ package org.example;
 
 import java.io.*;
 import java.net.ServerSocket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Server {
-    final static List<String> VALID_PATHS = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
-    final static Integer PORT = 9999;
+    private static final String FILE_PATH = "src/main/resources";
+    private ConcurrentHashMap<String, Handler> handlers = new ConcurrentHashMap<>();
+    private static final List<String> VALID_PATHS = List.of("/26.jpg", "/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
 
-    public static void main(String[] args) throws IOException {
-        serverMain();
+    public void listen(Integer port) throws IOException {
+        serverMain(port);
     }
 
-    public static void serverMain() throws IOException {
+    public String getFILE_PATH() {
+        return FILE_PATH;
+    }
+
+    private void serverMain(Integer port) throws IOException {
         // стартуем сервер
-        try (ServerSocket socket = new ServerSocket(PORT)) {
+        try (ServerSocket socket = new ServerSocket(port)) {
             System.out.println("start server");
             awaitingConnectionMainLoop(socket);
         }
     }
 
-    public static void awaitingConnectionMainLoop(ServerSocket serverSocket) {
+    private void awaitingConnectionMainLoop(ServerSocket serverSocket) {
         ExecutorService threadPool = Executors.newFixedThreadPool(64);
         while (true) {
-            try {
-                var socket = serverSocket.accept();
-                var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                var out = new BufferedOutputStream(socket.getOutputStream());
+            try (var socket = serverSocket.accept();
+                 var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                 var out = new BufferedOutputStream(socket.getOutputStream())) {
+
                 threadPool.execute(new Thread(() -> {
                     System.out.println("new request received");
                     //
@@ -49,15 +52,14 @@ public class Server {
                         if (!invalidRequest_Check(parts, out, path)) {
                             System.out.println("invalid request");
                         } else {
-                            Path filePath = Path.of("src/main/resources" + path);
-                            String mimeType = Files.probeContentType(filePath);
-                            //
-                            if (path.equals("/classic.html")) {
-                                classic(out, filePath, mimeType);
+                            Request request = new Request(parts[0], parts[1]);
+                            if (handlers.containsKey(request.getMethod_and_Header())) {
+                                handlers.get(request.getMethod_and_Header()).handle(request, out);
                             } else {
-                                def(out, filePath, mimeType);
+                                System.out.println("handler not found");
                             }
                         }
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -69,7 +71,7 @@ public class Server {
         }
     }
 
-    public static boolean invalidRequest_Check(String[] parts, BufferedOutputStream out, String path) throws IOException {
+    private boolean invalidRequest_Check(String[] parts, BufferedOutputStream out, String path) throws IOException {
         boolean validReq = true;
         if (!VALID_PATHS.contains(path)) {
             invalidRequest(out);
@@ -78,7 +80,7 @@ public class Server {
         return parts.length == 3 && validReq;
     }
 
-    public static void invalidRequest(BufferedOutputStream out) throws IOException {
+    private void invalidRequest(BufferedOutputStream out) throws IOException {
         out.write((
                 "HTTP/1.1 404 Not Found\r\n" +
                         "Content-Length: 0\r\n" +
@@ -88,33 +90,7 @@ public class Server {
         out.flush();
     }
 
-    public static void classic(BufferedOutputStream out, Path filePath, String mimeType) throws IOException {
-        final var template = Files.readString(filePath);
-        final var content = template.replace(
-                "{time}",
-                LocalDateTime.now().toString()
-        ).getBytes();
-        out.write((
-                "HTTP/1.1 200 OK\r\n" +
-                        "Content-Type: " + mimeType + "\r\n" +
-                        "Content-Length: " + content.length + "\r\n" +
-                        "Connection: close\r\n" +
-                        "\r\n"
-        ).getBytes());
-        out.write(content);
-        out.flush();
-    }
-
-    public static void def(BufferedOutputStream out, Path filePath, String mimeType) throws IOException {
-        final var length = Files.size(filePath);
-        out.write((
-                "HTTP/1.1 200 OK\r\n" +
-                        "Content-Type: " + mimeType + "\r\n" +
-                        "Content-Length: " + length + "\r\n" +
-                        "Connection: close\r\n" +
-                        "\r\n"
-        ).getBytes());
-        Files.copy(filePath, out);
-        out.flush();
+    public void addHandler(String method, String header, Handler handler) {
+        handlers.put(method + header, handler);
     }
 }

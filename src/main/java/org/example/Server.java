@@ -31,10 +31,15 @@ public class Server {
     private void awaitingConnectionMainLoop(ServerSocket serverSocket) {
         ExecutorService threadPool = Executors.newFixedThreadPool(64);
         while (true) {
-            try (var socket = serverSocket.accept();
-                 var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                 var out = new BufferedOutputStream(socket.getOutputStream())) {
-
+            try {
+                var socket = serverSocket.accept();
+                var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                var out = new BufferedOutputStream(socket.getOutputStream());
+                //  при мультипотоковом приложении сокет в трай с ресурсами сразу закрывается и не обрабатывает подключение
+                // Socket closed, если вы засчитаете это как ошибку, в ответе пожалуйста опишите, как этого избежать при
+                // использовании трай с ресурсами. спасибо.
+                // upd. перечитал спецификацию и StackOverflow : нет возможности сохранить трай с ресурсами и обрабатывать
+                // новое подключение в новом потоке, сокет сразу закрывается в ресурсах.
                 threadPool.execute(new Thread(() -> {
                     System.out.println("new request received");
                     //

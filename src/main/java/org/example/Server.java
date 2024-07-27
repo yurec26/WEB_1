@@ -15,7 +15,9 @@ import java.io.IOException;
 
 
 public class Server {
+    private static final String enctype_App = "application/x-www-form-urlencoded";
     private static final String GET = "GET";
+    
     private static final String POST = "POST";
     final List<String> allowedMethods = List.of(GET, POST);
     private final int limit = 4096;
@@ -126,13 +128,20 @@ public class Server {
                                                     final var body = new String(bodyBytes);
                                                     System.out.println("body: " + body); // логируем тело.
                                                     request.setBody(body); // добавляем тело при наличии.
+                                                    //  парсим тело
+                                                    final var contentTypeTemp = extractHeader(headers, "Content-Type");
+                                                    if (contentTypeTemp.isPresent()){
+                                                        final String contentType = extractHeader(headers, "Content-Type").get();
+                                                        if (contentType.equals(enctype_App)) {
+                                                            //  парсим тело
+                                                            addBodyParam(body, request);
+                                                            System.out.println("logins: " + request.getBodyParam("login"));
+                                                            System.out.println("passwords: " + request.getBodyParam("password"));
+                                                        }
+                                                    }
                                                 }
                                             }
-                                            //
                                             if (handlers.containsKey(request.getMethod_and_Header())) {
-                                                // демонстрация функции запроса значения любого параметра по имени
-                                                //  System.out.println(request.getQueryParam("login"));
-                                                // System.out.println(request.getQueryParam("password"));
                                                 handlers.get(request.getMethod_and_Header()).handle(request, out);
                                             } else {
                                                 System.out.println("handler not found");
@@ -190,8 +199,26 @@ public class Server {
 
     private void addQueryParam(URI uri, Request request) {
         List<NameValuePair> listParsed = URLEncodedUtils.parse(uri, StandardCharsets.UTF_8);
+        System.out.println("11     " + listParsed);
         for (NameValuePair s : listParsed) {
-            request.addParam(s.getName(), s.getValue());
+            request.addQueryParam(s.getName(), s.getValue());
         }
+    }
+
+    private void addBodyParam(String body, Request request) {
+        Map<String, List<String>> listMap = new HashMap<>();
+        List<String> parsedBody1 = Arrays.stream(body.split("&")).toList();
+        for (String s : parsedBody1) {
+            String name = s.split("=")[0];
+            String value = s.split("=")[1];
+            if (listMap.containsKey(name)) {
+                listMap.get(name).add(value);
+            } else {
+                List newValueList = new ArrayList();
+                newValueList.add(value);
+                listMap.put(name, newValueList);
+            }
+        }
+        request.addBodyParam(listMap);
     }
 }

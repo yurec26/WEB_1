@@ -6,6 +6,7 @@ import java.util.Map;
 
 public class Request {
     private Map<String, String> queryParams = new HashMap<>();
+    private Map<String, List<String>> bodyParams = new HashMap<>();
     private String path;
     private String method;
     private List<String> headers;
@@ -47,12 +48,21 @@ public class Request {
         return method + path;
     }
 
-    public void addParam(String name, String value){
-        this.queryParams.put(name,value);
+    public void addQueryParam(String name, String value) {
+        this.queryParams.put(name, value);
     }
 
-    public String getQueryParam(String name){
+    public void addBodyParam(Map<String, List<String>> map) {
+        this.bodyParams = map;
+    }
+
+
+    public String getQueryParam(String name) {
         return queryParams.get(name);
+    }
+
+    public List<String> getBodyParam(String name) {
+        return bodyParams.get(name);
     }
 
 

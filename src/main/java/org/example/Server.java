@@ -24,7 +24,6 @@ public class Server {
     private static final List<String> VALID_PATHS = List.of("/26.jpg", "/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
 
     public void listen(Integer port) throws IOException {
-
         serverMain(port);
     }
 
